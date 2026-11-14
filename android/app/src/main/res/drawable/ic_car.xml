@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- grass -->
+    <path android:fillColor="#6ECB4F" android:pathData="M0,70h108v38h-108z" />
+    <!-- road -->
+    <path android:fillColor="#5A5F6B" android:pathData="M0,66h108v12h-108z" />
+    <!-- car body -->
+    <path android:fillColor="#E53935" android:pathData="M30,60 L33,50 Q35,46 40,46 L60,46 Q64,46 67,50 L72,56 L77,57 Q80,58 80,61 L80,66 L30,66 Z" />
+    <!-- stripe -->
+    <path android:fillColor="#FFFFFF" android:pathData="M30,60h50v3h-50z" />
+    <!-- window -->
+    <path android:fillColor="#BFE9FF" android:pathData="M39,50 L59,50 Q61,50 63,52 L66,56 L37,56 Z" />
+    <!-- driver helmet -->
+    <path android:fillColor="#1E88E5" android:pathData="M50,48 m-6,0 a6,6 0 1,1 12,0 a6,6 0 1,1 -12,0" />
+    <!-- wheels -->
+    <path android:fillColor="#22232A" android:pathData="M41,67 m-7,0 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0" />
+    <path android:fillColor="#22232A" android:pathData="M69,67 m-7,0 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0" />
+    <path android:fillColor="#FFD23F" android:pathData="M41,67 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0" />
+    <path android:fillColor="#FFD23F" android:pathData="M69,67 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0" />
+</vector>
