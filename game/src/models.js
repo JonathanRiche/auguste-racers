@@ -60,6 +60,10 @@ function wheel(v, r, w, x, z, hub = 0xdddddd) {
   v.wheels.push({ g, r });
 }
 
+// Pools of light on the road in front of each car; faded in at night.
+export const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff0a0, transparent: true, opacity: 0, depthWrite: false });
+const beamGeo = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+
 function shell(shadowW, shadowL) {
   const group = new THREE.Group();
   const body = new THREE.Group();
@@ -71,6 +75,10 @@ function shell(shadowW, shadowL) {
   shadow.scale.set(shadowW, 1, shadowL);
   shadow.position.y = 0.06;
   group.add(shadow);
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.scale.set(shadowW * 1.5, 1, 5);
+  beam.position.set(0, 0.08, shadowL + 5);
+  group.add(beam);
   return { group, body, shadow, wheels: [], seat: new THREE.Vector3() };
 }
 
@@ -89,6 +97,29 @@ function raceCar(color) {
   sph(b, 0.14, 0xfff3a0, 0.6, 0.62, 2.0);
   for (const x of [-1.15, 1.15]) for (const z of [1.35, -1.35]) wheel(v, 0.5, 0.5, x, z);
   v.seat.set(0, 0.8, -0.3);
+  return v;
+}
+
+function policeCar() {
+  const v = shell(1.8, 2.9);
+  const b = v.body;
+  const dark = 0x1f2a44;
+  box(b, 1.9, 0.65, 4.3, dark, 0, 0.78, 0);
+  box(b, 1.92, 0.67, 1.7, 0xffffff, 0, 0.78, -0.2);
+  box(b, 1.7, 0.6, 2.0, 0xffffff, 0, 1.38, -0.3);
+  box(b, 1.5, 0.42, 0.06, 0x9fdcff, 0, 1.4, 0.71);
+  box(b, 1.5, 0.42, 0.06, 0x9fdcff, 0, 1.4, -1.31);
+  for (const x of [-0.86, 0.86]) box(b, 0.05, 0.38, 1.6, 0x9fdcff, x, 1.42, -0.3);
+  box(b, 1.95, 0.22, 0.2, 0xcfd3da, 0, 0.6, 2.2);
+  box(b, 1.2, 0.12, 0.3, 0x2b2d36, 0, 1.74, -0.95);
+  v.flash = [
+    box(b, 0.5, 0.26, 0.34, 0xff2a2a, -0.36, 1.86, -0.95),
+    box(b, 0.5, 0.26, 0.34, 0x2a6bff, 0.36, 1.86, -0.95),
+  ];
+  sph(b, 0.15, 0xfff3a0, -0.65, 0.85, 2.16);
+  sph(b, 0.15, 0xfff3a0, 0.65, 0.85, 2.16);
+  for (const x of [-1.05, 1.05]) for (const z of [1.4, -1.4]) wheel(v, 0.5, 0.42, x, z);
+  v.seat.set(0, 1.3, -0.1);
   return v;
 }
 
@@ -169,6 +200,7 @@ function tractor() {
 
 export const VEHICLES = [
   { id: 'racecar', name: 'Race Car', speed: 1.0, build: () => raceCar(0xe53935) },
+  { id: 'police', name: 'Police Car', speed: 0.98, build: () => policeCar() },
   { id: 'monster', name: 'Monster Truck', speed: 0.94, build: () => monsterTruck(0x3f6fe0) },
   { id: 'fire', name: 'Fire Truck', speed: 0.94, build: () => fireTruck() },
   { id: 'bus', name: 'School Bus', speed: 0.9, build: () => schoolBus() },

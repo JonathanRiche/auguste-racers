@@ -14,5 +14,5 @@ gradle_bin=${GRADLE_BIN:-gradle}
 "$gradle_bin" -p "$root/android" --no-daemon --console plain :app:assembleRelease
 mkdir -p "$root/dist"
 version=$(sed -n 's/.*versionName = "\(.*\)"/\1/p' "$root/android/app/build.gradle.kts")
-cp "$root/android/app/build/outputs/apk/release/app-release.apk" "$root/dist/august-racers-$version.apk"
-echo "Built dist/august-racers-$version.apk"
+cp "$root/android/app/build/outputs/apk/release/app-release.apk" "$root/dist/auguste-racers-$version.apk"
+echo "Built dist/auguste-racers-$version.apk"

@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { VEHICLES, DRIVERS, buildCar, mat } from './models.js';
+import { VEHICLES, DRIVERS, buildCar, mat, beamMat } from './models.js';
 import { TRACKS, ROAD_W, buildWorld } from './world.js';
 import { input, onAction, pollInput, bindTouch, clearInput } from './input.js';
 import * as audio from './audio.js';
 
-const PLAYER_NAME = 'August';
+const PLAYER_NAME = 'Auguste';
 const TOP_SPEED = 34;
 const HALF = ROAD_W / 2;
 const WALL = HALF + 2.5;
@@ -16,9 +16,10 @@ const OPTIONS = [
   { key: 'speed', label: 'Speed', values: [0.6, 0.8, 1.0], show: (v) => ({ 0.6: 'Slow', 0.8: 'Medium', 1: 'Fast' }[v]) },
   { key: 'help', label: 'Steering help', values: [2, 1, 0], show: (v) => ['Off', 'A little', 'Lots'][v] },
   { key: 'autoGo', label: 'Driving', values: [true, false], show: (v) => (v ? 'Goes by itself' : 'Hold A to go') },
+  { key: 'sky', label: 'Sky', values: ['cycle', 'day', 'night'], show: (v) => ({ cycle: 'Day and night', day: 'Always day', night: 'Always night' }[v]) },
   { key: 'sound', label: 'Sound', values: [true, false], show: (v) => (v ? 'On' : 'Off') },
 ];
-const settings = { vehicle: 0, driver: 0, track: 0, laps: 3, friends: true, speed: 0.8, help: 2, autoGo: true, sound: true };
+const settings = { vehicle: 0, driver: 0, track: 0, laps: 3, friends: true, speed: 0.8, help: 2, autoGo: true, sky: 'cycle', sound: true };
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem('august-racers') || '{}'));
 } catch (e) { /* storage unavailable */ }
@@ -37,14 +38,18 @@ renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
 const camera = new THREE.PerspectiveCamera(62, 1, 1, 1200);
 
 function lights(scene) {
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9a70, 1.5));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a9a70, 1.5);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 1.6);
   sun.position.set(60, 120, -40);
   scene.add(sun);
+  return { hemi, sun };
 }
 
 const raceScene = new THREE.Scene();
-lights(raceScene);
+const raceLights = lights(raceScene);
+raceScene.background = new THREE.Color();
+raceScene.fog = new THREE.Fog(0xffffff, 250, 900);
 const showScene = new THREE.Scene();
 showScene.background = new THREE.Color(0x58b7f5);
 lights(showScene);
@@ -90,8 +95,36 @@ function loadWorld() {
   }
   world = buildWorld(TRACKS[settings.track]);
   raceScene.add(world.group);
-  raceScene.background = new THREE.Color(world.def.sky);
-  raceScene.fog = new THREE.Fog(world.def.sky, 250, 900);
+  daySky.set(world.def.sky);
+  updateSky(0);
+}
+
+// ---------- day and night ----------
+const DAY_LENGTH = 150; // seconds for a full day and night
+const daySky = new THREE.Color(), nightSky = new THREE.Color(0x0c1642), duskSky = new THREE.Color(0xff9d5c);
+const dayLight = new THREE.Color(0xffffff), nightLight = new THREE.Color(0x9db4ff);
+let clock = 0.12; // 0 = sunrise, 0.25 = noon, 0.5 = sunset, 0.75 = midnight
+function updateSky(dt) {
+  if (settings.sky === 'day') clock = 0.2;
+  else if (settings.sky === 'night') clock = 0.75;
+  else clock = (clock + dt / DAY_LENGTH) % 1;
+  // Daytime takes up about two thirds of the cycle.
+  const a = clock < 0.62 ? (clock / 0.62) * Math.PI : Math.PI + ((clock - 0.62) / 0.38) * Math.PI;
+  const h = Math.sin(a);
+  const day = Math.max(0, Math.min(1, (h + 0.12) / 0.3));
+  const dusk = Math.max(0, 1 - Math.abs(h) / 0.3);
+  const sky = raceScene.background;
+  sky.copy(nightSky).lerp(daySky, day).lerp(duskSky, dusk * 0.55);
+  raceScene.fog.color.copy(sky);
+  raceLights.hemi.intensity = 0.6 + 0.9 * day;
+  raceLights.sun.intensity = 0.35 + 1.25 * day;
+  raceLights.sun.color.copy(nightLight).lerp(dayLight, day);
+  const c = world.center;
+  world.sun.position.set(c.x + Math.cos(a) * 480, h * 330, c.z - 380);
+  world.moon.position.set(c.x - Math.cos(a) * 480, -h * 330, c.z - 380);
+  world.stars.material.opacity = 1 - day;
+  world.stars.visible = day < 1;
+  beamMat.opacity = (1 - day) * 0.35;
 }
 
 function placeOnTrack(car) {
@@ -147,6 +180,7 @@ function syncCar(car, dt) {
   car.spin += (car.speed * dt);
   for (const w of car.wheels) w.g.rotation.x = car.spin / w.r;
   car.body.position.y = Math.abs(car.speed) > 1 ? Math.sin(time * 22 + car.x) * 0.025 : 0;
+  flashLights(car);
 }
 
 function wrapAngle(a) {
@@ -155,8 +189,16 @@ function wrapAngle(a) {
   return a;
 }
 
+function flashLights(car) {
+  if (!car.flash) return;
+  const on = Math.floor(time * 4) % 2;
+  car.flash[0].scale.y = on ? 0.4 : 0.14;
+  car.flash[1].scale.y = on ? 0.14 : 0.4;
+}
+
 function honk() {
-  audio.horn();
+  if (player && player.def.id === 'police') audio.siren();
+  else audio.horn();
   if (player && player.y === 0) player.vy = 7;
 }
 
@@ -470,8 +512,10 @@ function frame(now) {
 
   if (state !== 'paused') {
     time += dt;
+    if (!inShowroom()) updateSky(dt);
     if (inShowroom()) {
       turntable.rotation.y += dt * 0.7;
+      flashLights(showCar);
     } else if (state === 'track' || state === 'options') {
       // Cars wait on the grid.
     } else if (state === 'countdown') {

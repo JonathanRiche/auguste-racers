@@ -266,8 +266,20 @@ export function buildWorld(def) {
 
   const sun = new THREE.Mesh(ico, new THREE.MeshBasicMaterial({ color: 0xfff2a8, fog: false }));
   sun.scale.setScalar(26);
-  sun.position.set(cx + 250, 190, cz - 330);
   group.add(sun);
+  const moon = new THREE.Mesh(ico, new THREE.MeshBasicMaterial({ color: 0xe8eeff, fog: false }));
+  moon.scale.setScalar(18);
+  group.add(moon);
+  const starPos = [];
+  for (let i = 0; i < 350; i++) {
+    const a = rand() * Math.PI * 2, el = 0.08 + rand() * 1.45;
+    starPos.push(cx + Math.cos(a) * Math.cos(el) * 800, Math.sin(el) * 800, cz + Math.sin(a) * Math.cos(el) * 800);
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+  const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 2.5, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }));
+  stars.frustumCulled = false;
+  group.add(stars);
 
   // Nearest sample point to (x, z). Pass the last known index as a hint.
   function locate(x, z, hint) {
@@ -282,12 +294,12 @@ export function buildWorld(def) {
   }
 
   return {
-    def, group, N, px, pz, tx, tz, locate,
+    def, group, N, px, pz, tx, tz, locate, sun, moon, stars,
     center: new THREE.Vector3(cx, 0, cz), radius,
     segLen: curve.getLength() / N,
     dispose() {
       group.traverse((o) => {
-        if (o.isMesh && o.geometry !== ico && o.geometry !== coneG && o.geometry !== cylG && o.geometry !== boxG) o.geometry.dispose();
+        if ((o.isMesh || o.isPoints) && o.geometry !== ico && o.geometry !== coneG && o.geometry !== cylG && o.geometry !== boxG) o.geometry.dispose();
         if (o.isInstancedMesh) o.dispose();
       });
       banner.material.map.dispose();

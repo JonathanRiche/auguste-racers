@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>August Racers</title>
+<title>Auguste Racers</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #58b7f5; touch-action: none;
@@ -15,7 +15,7 @@
   #ui button:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.3); }
   .top { position: absolute; top: 4vh; left: 0; right: 0; text-align: center; font-size: 9vh; }
   .title { position: absolute; top: 5vh; left: 0; right: 0; text-align: center; }
-  .title h1 { margin: 0; font-size: 17vh; line-height: 1; color: #ffd23f; -webkit-text-stroke: 0.6vh #c0392b; text-shadow: 0 1vh 0 rgba(0,0,0,.3); }
+  .title h1 { margin: 0; font-size: 16vh; line-height: 1; color: #ffd23f; -webkit-text-stroke: 0.6vh #c0392b; text-shadow: 0 1vh 0 rgba(0,0,0,.3); }
   .bottom { position: absolute; bottom: 4vh; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 1.5vh; }
   .name { font-size: 9vh; line-height: 1; }
   .row { display: flex; gap: 4vw; align-items: center; }
@@ -35,13 +35,13 @@
   .count.pop { animation: pop .6s ease-out; }
   @keyframes pop { from { transform: scale(2); opacity: 0; } 40% { opacity: 1; } to { transform: scale(1); } }
   .panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(92vw, 150vh); max-height: 96vh;
-    background: rgba(20, 40, 80, .88); border-radius: 5vh; padding: 3vh 4vh; display: flex; flex-direction: column; gap: 1.4vh; align-items: stretch; pointer-events: auto; }
-  .panel h2 { margin: 0 0 1vh; text-align: center; font-size: 8vh; line-height: 1; }
-  .opt { display: flex; justify-content: space-between; align-items: center; font-size: 5.2vh; padding: .8vh 2.5vh; border-radius: 3vh; border: .6vh solid transparent; }
+    background: rgba(20, 40, 80, .88); border-radius: 5vh; padding: 3vh 4vh; display: flex; flex-direction: column; gap: 1vh; align-items: stretch; pointer-events: auto; }
+  .panel h2 { margin: 0; text-align: center; font-size: 7vh; line-height: 1; }
+  .opt { display: flex; justify-content: space-between; align-items: center; font-size: 4.6vh; padding: .4vh 2.5vh; border-radius: 3vh; border: .6vh solid transparent; }
   .opt.sel { border-color: #ffd23f; background: rgba(255,255,255,.12); }
   .opt b { display: flex; align-items: center; gap: 2vh; }
   .opt em { font-style: normal; min-width: 42vh; text-align: center; color: #ffd23f; }
-  #ui .opt button { width: 8vh; height: 8vh; font-size: 4vh; box-shadow: none; }
+  #ui .opt button { width: 7vh; height: 7vh; font-size: 3.5vh; box-shadow: none; }
   #ui .panel button.go { align-self: center; font-size: 6vh; margin-top: 1vh; }
   #ui button.item { font-size: 8vh; padding: 2vh; background: rgba(255,255,255,.14); box-shadow: none; border: .7vh solid transparent; }
   #ui button.item.sel { border-color: #ffd23f; background: #2b6fd6; }

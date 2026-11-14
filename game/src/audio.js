@@ -80,6 +80,26 @@ export function horn() {
   tone(392, 0.18, 0.26, 'square', 0.12);
   tone(494, 0.18, 0.26, 'square', 0.12);
 }
+export function siren() {
+  if (!ctx) return;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'square';
+  const t = ctx.currentTime;
+  for (let i = 0; i < 3; i++) {
+    o.frequency.setValueAtTime(620, t + i * 0.5);
+    o.frequency.linearRampToValueAtTime(980, t + i * 0.5 + 0.25);
+    o.frequency.linearRampToValueAtTime(620, t + i * 0.5 + 0.5);
+  }
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.1, t + 0.03);
+  g.gain.setValueAtTime(0.1, t + 1.45);
+  g.gain.linearRampToValueAtTime(0, t + 1.5);
+  o.connect(g);
+  g.connect(master);
+  o.start(t);
+  o.stop(t + 1.55);
+}
 export function blip() {
   tone(660, 0, 0.07, 'triangle', 0.2);
 }
