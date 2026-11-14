@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -24,6 +25,20 @@ import java.util.Locale;
 public class MainActivity extends Activity {
     private WebView web;
     private boolean ready;
+    private Updater updater;
+
+    /** Exposed to the page as window.Host. */
+    private final class Host {
+        @JavascriptInterface
+        public String version() {
+            return updater.currentVersion();
+        }
+
+        @JavascriptInterface
+        public void checkUpdate() {
+            updater.start();
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -49,6 +64,8 @@ public class MainActivity extends Activity {
                 ready = true;
             }
         });
+        updater = new Updater(this, msg -> js("window.updateStatus&&updateStatus('" + msg.replace("\\", "").replace("'", "") + "')"));
+        web.addJavascriptInterface(new Host(), "Host");
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html?native=1");
         hideSystemBars();
@@ -154,6 +171,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        updater.close();
         web.destroy();
         super.onDestroy();
     }

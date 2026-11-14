@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VEHICLES, DRIVERS, buildCar, mat, beamMat } from './models.js';
-import { TRACKS, ROAD_W, buildWorld } from './world.js';
+import { TRACKS, LEVELS, ROAD_W, buildWorld } from './world.js';
 import { input, onAction, pollInput, bindTouch, clearInput } from './input.js';
 import * as audio from './audio.js';
 
@@ -11,21 +11,32 @@ const WALL = HALF + 2.5;
 
 // ---------- settings ----------
 const OPTIONS = [
-  { key: 'laps', label: 'Laps', values: [1, 2, 3, 5], show: (v) => String(v) },
-  { key: 'friends', label: 'Friends', values: [true, false], show: (v) => (v ? 'Race with friends' : 'Just drive') },
   { key: 'speed', label: 'Speed', values: [0.6, 0.8, 1.0], show: (v) => ({ 0.6: 'Slow', 0.8: 'Medium', 1: 'Fast' }[v]) },
   { key: 'help', label: 'Steering help', values: [2, 1, 0], show: (v) => ['Off', 'A little', 'Lots'][v] },
   { key: 'autoGo', label: 'Driving', values: [true, false], show: (v) => (v ? 'Goes by itself' : 'Hold A to go') },
   { key: 'sky', label: 'Sky', values: ['cycle', 'day', 'night'], show: (v) => ({ cycle: 'Day and night', day: 'Always day', night: 'Always night' }[v]) },
   { key: 'sound', label: 'Sound', values: [true, false], show: (v) => (v ? 'On' : 'Off') },
 ];
-const settings = { vehicle: 0, driver: 0, track: 0, laps: 3, friends: true, speed: 0.8, help: 2, autoGo: true, sky: 'cycle', sound: true };
+const settings = { vehicle: 0, driver: 0, level: 0, stars: [], speed: 0.8, help: 2, autoGo: true, sky: 'cycle', sound: true };
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem('august-racers') || '{}'));
 } catch (e) { /* storage unavailable */ }
 settings.vehicle = Math.min(Math.max(settings.vehicle | 0, 0), VEHICLES.length - 1);
 settings.driver = Math.min(Math.max(settings.driver | 0, 0), DRIVERS.length - 1);
-settings.track = Math.min(Math.max(settings.track | 0, 0), TRACKS.length - 1);
+settings.level = Math.min(Math.max(settings.level | 0, 0), LEVELS.length - 1);
+if (!Array.isArray(settings.stars)) settings.stars = [];
+const level = () => LEVELS[settings.level];
+const starsFor = (i) => settings.stars[i] || 0;
+const unlocked = (i) => i === 0 || starsFor(i - 1) > 0;
+const PLACES = ['1st', '2nd', '3rd', '4th'];
+
+// The Android shell provides Host for in-app updates; absent in a browser.
+const Host = window.Host || null;
+let updateMsg = Host ? 'Version ' + Host.version() : '';
+window.updateStatus = (msg) => {
+  updateMsg = msg;
+  if (state === 'options') render();
+};
 function save() {
   try { localStorage.setItem('august-racers', JSON.stringify(settings)); } catch (e) { /* ignore */ }
 }
@@ -78,7 +89,7 @@ let world = null;
 let showCar = null;
 let player = null;
 let rivals = [];
-let optRow = 0, pauseRow = 0;
+let optRow = 0, pauseRow = 0, result = null;
 let countdown = 0, countShown = 0, finishTime = 0, time = 0;
 
 function setShowCar() {
@@ -88,12 +99,12 @@ function setShowCar() {
 }
 
 function loadWorld() {
-  if (world && world.def === TRACKS[settings.track]) return;
+  if (world && world.def === TRACKS[level().track]) return;
   if (world) {
     raceScene.remove(world.group);
     world.dispose();
   }
-  world = buildWorld(TRACKS[settings.track]);
+  world = buildWorld(TRACKS[level().track]);
   raceScene.add(world.group);
   daySky.set(world.def.sky);
   updateSky(0);
@@ -155,22 +166,65 @@ function setupRace() {
   if (player) raceScene.remove(player.group);
   for (const r of rivals) raceScene.remove(r.group);
   rivals = [];
-  player = newCar(settings.vehicle, settings.driver, -14, -3.5);
-  if (settings.friends) {
-    const grid = [[-7, 3.5], [-21, 3.5], [-28, -3.5]];
-    grid.forEach(([prog, lane], k) => {
-      const v = (settings.vehicle + 1 + k) % VEHICLES.length;
-      const d = (settings.driver + 1 + k) % DRIVERS.length;
-      const r = newCar(v, d, prog, lane);
-      r.pace = 0.8 + k * 0.05;
-      r.wob = k * 2.1;
-      r.baseLane = lane;
-      rivals.push(r);
-    });
-  }
+  // The player starts at the back of the grid so the other racers are in view.
+  player = newCar(settings.vehicle, settings.driver, -28, -3.5);
+  player.boost = 0;
+  const grid = [[-7, 3.5], [-14, -3.5], [-21, 3.5]];
+  grid.forEach(([prog, lane], k) => {
+    const v = (settings.vehicle + 1 + k) % VEHICLES.length;
+    const d = (settings.driver + 1 + k) % DRIVERS.length;
+    const r = newCar(v, d, prog, lane);
+    r.bias = [0.04, 0, -0.04][k];
+    r.wob = k * 2.1;
+    r.baseLane = lane;
+    rivals.push(r);
+  });
+  buildPads();
+  result = null;
   syncCar(player, 0);
   rivals.forEach((r) => syncCar(r, 0));
   snapNext = true;
+}
+
+// Zoom pads: drive over one for a burst of speed.
+const padGroup = new THREE.Group();
+raceScene.add(padGroup);
+let pads = [];
+const padGeo = new THREE.PlaneGeometry(4.6, 5.5).rotateX(-Math.PI / 2);
+const padMat = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#19c37d';
+  g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 16;
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  for (const y of [18, 54, 90]) {
+    g.beginPath();
+    g.moveTo(28, y);
+    g.lineTo(64, y + 26);
+    g.lineTo(100, y);
+    g.stroke();
+  }
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c) });
+})();
+function buildPads() {
+  padGroup.clear();
+  pads = [];
+  const N = world.N, count = 6;
+  // Pads sit to one side of the road, so reaching them takes steering.
+  for (let k = 0; k < count; k++) {
+    const i = Math.floor((N * (k + 0.5)) / count);
+    const lane = (k + settings.level) % 2 ? 4.5 : -4.5;
+    const x = world.px[i] + world.tz[i] * lane, z = world.pz[i] - world.tx[i] * lane;
+    const m = new THREE.Mesh(padGeo, padMat);
+    m.position.set(x, 0.16, z);
+    m.rotation.y = Math.atan2(world.tx[i], world.tz[i]);
+    padGroup.add(m);
+    pads.push({ x, z, cool: 0 });
+  }
 }
 
 function syncCar(car, dt) {
@@ -205,7 +259,16 @@ function honk() {
 // ---------- driving ----------
 function updatePlayer(dt, auto) {
   const p = player, N = world.N;
-  const top = TOP_SPEED * settings.speed * p.def.speed;
+  p.boost = Math.max(0, p.boost - dt);
+  for (const pad of pads) {
+    pad.cool -= dt;
+    if (!auto && pad.cool <= 0 && (p.x - pad.x) ** 2 + (p.z - pad.z) ** 2 < 12) {
+      pad.cool = 3;
+      p.boost = 2.2;
+      audio.zoom();
+    }
+  }
+  const top = TOP_SPEED * settings.speed * (p.boost > 0 ? 1.4 : 1);
   let steer = auto ? 0 : input.steer;
   let gas = auto ? 0.6 : settings.autoGo ? 1 : input.gas;
   const brake = auto ? 0 : input.brake;
@@ -214,7 +277,7 @@ function updatePlayer(dt, auto) {
   let target = gas * top;
   if (Math.abs(off0) > HALF) target *= 0.75;
   if (brake > 0.1) target = settings.autoGo || p.speed > 0.5 ? 0 : -8 * brake;
-  const rate = target > p.speed ? 14 : brake > 0.1 ? 40 : 12;
+  const rate = target > p.speed ? (p.boost > 0 ? 40 : 14) : brake > 0.1 ? 40 : 12;
   p.speed += Math.max(-rate * dt, Math.min(rate * dt, target - p.speed));
 
   // Stick steering. Turning right lowers the heading angle.
@@ -274,21 +337,20 @@ function updatePlayer(dt, auto) {
 
 function updateRivals(dt) {
   const N = world.N;
-  const goal = N * settings.laps;
   const top = TOP_SPEED * settings.speed;
   for (const r of rivals) {
+    // The racers hang around the player: they ease off when far ahead and
+    // hurry when left behind, so there is always someone to race.
     const gap = r.prog - player.prog;
-    let pace = r.pace;
-    if (gap > 50) pace = 0.5;
-    else if (gap > 20) pace *= 0.85;
-    else if (gap < -60) pace = 1.15;
-    else if (gap < -25) pace = 1.0;
-    // Friends always let the player cross the line first.
-    if (state === 'race' && gap > 0 && goal - r.prog < 120) pace = Math.min(pace, 0.35);
+    let pace = level().pace + r.bias;
+    if (gap < -60) pace += 0.25;
+    else if (gap < -20) pace += 0.12;
+    else if (gap > 80) pace -= 0.2;
+    else if (gap > 30) pace -= 0.08;
+    if (state === 'finish') pace = Math.min(pace, 0.6);
     const target = top * pace;
     r.speed += Math.max(-10 * dt, Math.min(10 * dt, target - r.speed));
     r.prog += (r.speed * dt) / world.segLen;
-    if (state === 'race' && r.prog > goal - 6) { r.prog = goal - 6; r.speed = 0; }
     r.lane = r.baseLane + Math.sin(time * 0.5 + r.wob) * 1.5;
     placeOnTrack(r);
     syncCar(r, dt);
@@ -328,6 +390,11 @@ function updateCamera(dt) {
   camLook.lerp(wantLook, k);
   camera.position.copy(camPos);
   camera.lookAt(camLook);
+  const fov = state === 'race' && player.boost > 0 ? 74 : 62;
+  if (Math.abs(camera.fov - fov) > 0.1) {
+    camera.fov += (fov - camera.fov) * Math.min(1, dt * 5);
+    camera.updateProjectionMatrix();
+  }
 }
 function inShowroom() {
   return state === 'title' || state === 'vehicle' || state === 'driver';
@@ -356,17 +423,22 @@ function render() {
   } else if (state === 'driver') {
     h = picker('Who is driving?', DRIVERS[settings.driver].name, DRIVERS.length, settings.driver);
   } else if (state === 'track') {
-    h = `<div class="top">Where shall we race?</div>
+    const open = unlocked(settings.level);
+    h = `<div class="top">Level ${settings.level + 1}</div>
       <button class="arrow left" data-act="left">◀</button>
       <button class="arrow right" data-act="right">▶</button>
       <button class="corner" data-act="opt">⚙ Options</button>
-      <div class="bottom"><div class="name">${esc(TRACKS[settings.track].name)}</div>${dots(TRACKS.length, settings.track)}
-      <div class="row"><button class="small" data-act="back">◀ Back</button><button class="go" data-act="ok">GO! 🏁</button></div></div>`;
+      <div class="bottom"><div class="name">${esc(TRACKS[level().track].name)}</div>
+      ${open ? starRow(starsFor(settings.level)) : '<div class="stars">🔒</div>'}${dots(LEVELS.length, settings.level)}
+      <div class="row"><button class="small" data-act="back">◀ Back</button>
+      <button class="go ${open ? '' : 'off'}" data-act="ok">${open ? 'GO! 🏁' : 'Locked'}</button></div></div>`;
   } else if (state === 'options') {
     h = `<div class="panel"><h2>Options</h2>${OPTIONS.map((o, i) => `
       <div class="opt ${i === optRow ? 'sel' : ''}" data-row="${i}">
         <span>${o.label}</span><b><button data-row="${i}" data-act="left">◀</button>
         <em>${o.show(settings[o.key])}</em><button data-row="${i}" data-act="right">▶</button></b></div>`).join('')}
+      ${Host ? `<div class="opt ${optRow === OPTIONS.length ? 'sel' : ''}"><span>Update</span><b>
+        <em class="wide">${esc(updateMsg)}</em><button data-row="${OPTIONS.length}" data-act="ok">⬇</button></b></div>` : ''}
       <button class="go" data-act="back">Done ✔</button></div>`;
   } else if (state === 'countdown') {
     h = hud() + `<div class="count" id="count"></div>`;
@@ -379,11 +451,18 @@ function render() {
   } else if (state === 'finish') {
     h = `<div class="confetti">${Array.from({ length: 60 }, (_, i) =>
       `<i style="left:${(i * 37) % 100}%;background:hsl(${(i * 47) % 360} 90% 60%);animation-delay:${-((i * 0.37) % 3)}s;animation-duration:${2.2 + (i % 5) * 0.4}s"></i>`).join('')}</div>
-      <div class="title"><h1>🏆<br>Yay ${PLAYER_NAME}!</h1></div>
-      <div class="bottom"><div class="row"><button class="small" data-act="back">⌂ Menu</button><button class="go" data-act="ok">Again! 🏁</button></div></div>`;
+      <div class="title"><h1 class="yay">Yay ${PLAYER_NAME}!</h1>${starRow(result.stars, true)}
+      <div class="name">${PLACES[result.place - 1]} place</div></div>
+      <div class="bottom"><div class="row"><button class="small" data-act="back">⌂ Levels</button>
+      <button class="small" data-act="opt">↺ Again</button>
+      <button class="go" data-act="ok">${settings.level < LEVELS.length - 1 ? 'Next ▶' : 'Again! 🏁'}</button></div></div>`;
   }
   ui.innerHTML = h;
   updateHud();
+}
+
+function starRow(n, animate) {
+  return `<div class="stars ${animate ? 'pop3' : ''}">${[0, 1, 2].map((i) => `<i class="${i < n ? 'on' : ''}">★</i>`).join('')}</div>`;
 }
 
 function hud() {
@@ -394,10 +473,13 @@ let lapShown = -1;
 function updateHud() {
   const el = document.getElementById('lap');
   if (!el || !player) return;
-  const lap = Math.min(settings.laps, Math.max(1, Math.floor(player.prog / world.N) + 1));
-  if (el.dataset.lap !== String(lap)) {
-    el.dataset.lap = String(lap);
-    el.textContent = `🏁 ${lap} / ${settings.laps}`;
+  const laps = level().laps;
+  const lap = Math.min(laps, Math.max(1, Math.floor(player.prog / world.N) + 1));
+  const place = 1 + rivals.filter((r) => r.prog > player.prog).length;
+  const key = lap + '-' + place;
+  if (el.dataset.lap !== key) {
+    el.dataset.lap = key;
+    el.textContent = `🏁 ${lap} / ${laps}   ${PLACES[place - 1]}`;
     if (lap > 1 && lap !== lapShown && state === 'race') audio.lapChime();
     lapShown = lap;
   }
@@ -444,16 +526,20 @@ function act(a, row) {
       else if (a === 'back') go('vehicle');
       break;
     case 'track':
-      if (dir) { cycle('track', TRACKS.length, dir); setupRace(); render(); }
-      else if (a === 'ok' || a === 'pause') startRace();
+      if (dir) { cycle('level', LEVELS.length, dir); setupRace(); render(); }
+      else if (a === 'ok' || a === 'pause') { if (unlocked(settings.level)) startRace(); }
       else if (a === 'back') go('driver');
       else if (a === 'opt') { optRow = 0; go('options'); }
       break;
     case 'options':
+      const rows = OPTIONS.length + (Host ? 1 : 0);
       if (row !== undefined) optRow = row;
-      if (a === 'up') optRow = (optRow + OPTIONS.length - 1) % OPTIONS.length;
-      else if (a === 'down') optRow = (optRow + 1) % OPTIONS.length;
-      else if (dir) {
+      if (a === 'up') optRow = (optRow + rows - 1) % rows;
+      else if (a === 'down') optRow = (optRow + 1) % rows;
+      else if (optRow === OPTIONS.length) {
+        if (a === 'ok' || dir) Host.checkUpdate();
+        else if (a === 'back' || a === 'opt' || a === 'pause') { setupRace(); go('track'); return; }
+      } else if (dir) {
         const o = OPTIONS[optRow];
         const i = o.values.indexOf(settings[o.key]);
         settings[o.key] = o.values[(i + dir + o.values.length) % o.values.length];
@@ -479,7 +565,10 @@ function act(a, row) {
       break;
     case 'finish':
       if (time - finishTime < 2) break;
-      if (a === 'ok') startRace();
+      if (a === 'ok') {
+        if (settings.level < LEVELS.length - 1) { settings.level++; save(); }
+        startRace();
+      } else if (a === 'opt') startRace();
       else if (a === 'back' || a === 'pause') { setupRace(); go('track'); }
       else if (a === 'horn') honk();
       break;
@@ -547,10 +636,16 @@ function frame(now) {
       updateRivals(dt);
       updateHud();
       audio.setEngine(player.speed / TOP_SPEED, true);
-      if (player.prog >= world.N * settings.laps) {
+      if (player.prog >= world.N * level().laps) {
         finishTime = time;
+        const place = 1 + rivals.filter((r) => r.prog > player.prog).length;
+        const stars = place === 1 ? 3 : place === 2 ? 2 : 1;
+        result = { place, stars };
+        settings.stars[settings.level] = Math.max(starsFor(settings.level), stars);
+        save();
         audio.setEngine(0, false);
         audio.fanfare();
+        for (let i = 0; i < stars; i++) setTimeout(() => audio.star(i), 1300 + i * 350);
         go('finish');
       }
     } else if (state === 'finish') {
@@ -573,7 +668,7 @@ window.appPause = (p) => {
 document.addEventListener('visibilitychange', () => window.appPause(document.hidden));
 
 // Test hook: jump straight to a screen, e.g. index.html#race
-window.__game = { act, settings, get state() { return state; }, get player() { return player; } };
+window.__game = { act, settings, get state() { return state; }, get player() { return player; }, get rivals() { return rivals; } };
 
 setShowCar();
 render();

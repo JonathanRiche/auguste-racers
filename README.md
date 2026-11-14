@@ -10,8 +10,10 @@ Android will ask you to allow installing from your browser or file manager the f
 
 ## Playing
 
-- Pick a vehicle (race car, police car, monster truck, fire truck, school bus, tractor), a driver (racer, puppy, kitty, bear, dino, bunny) and a track (Sunny Meadow, Sandy Beach, Snowy Hills).
-- By default the car drives by itself and steering help keeps it on the road, so a toddler only has to steer, or do nothing at all. The edges of the track are soft, nothing crashes, and the friends always let the player finish first.
+- Pick a vehicle (race car, police car, monster truck, fire truck, school bus, tractor), a driver (racer, puppy, kitty, bear, dino, bunny) then a level. There are 12 levels across four tracks (Sunny Meadow, Sandy Beach, Snowy Hills, Dusty Canyon); finishing a level unlocks the next.
+- Each race is against three computer racers. Finishing 1st earns three stars, 2nd two stars, and anything else one star. The racers get faster in later levels.
+- Green zoom pads at the sides of the road give a burst of speed.
+- By default the car drives by itself and steering help keeps it on the road, so a toddler only has to steer, or do nothing at all. The edges of the track are soft, nothing crashes, and every finish earns at least one star.
 
 | Control | Gamepad | Touch |
 |---|---|---|
@@ -22,9 +24,13 @@ Android will ask you to allow installing from your browser or file manager the f
 | Pause | Start | Pause button |
 | Menus | Stick or d-pad, A to choose, B to go back | Tap |
 
-Options (the Options button or Y on the track screen): laps, race with friends or just drive, speed, steering help, auto-drive, sky (day and night cycle, always day or always night) and sound.
+Options (the Options button or Y on the level screen): speed, steering help, auto-drive, sky (day and night cycle, always day or always night) and sound.
 
 With the day and night cycle on, the sun sets and rises every couple of minutes; at night the stars and moon come out and the cars switch their headlights on.
+
+## Updating
+
+Options > Update checks the latest GitHub release and, if it is newer, downloads and installs it. The first time, Android asks you to allow Auguste Racers to install apps.
 
 ## Building
 

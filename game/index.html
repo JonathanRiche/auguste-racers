@@ -45,6 +45,18 @@
   #ui .panel button.go { align-self: center; font-size: 6vh; margin-top: 1vh; }
   #ui button.item { font-size: 8vh; padding: 2vh; background: rgba(255,255,255,.14); box-shadow: none; border: .7vh solid transparent; }
   #ui button.item.sel { border-color: #ffd23f; background: #2b6fd6; }
+  .title h1.yay { font-size: 13vh; }
+  .stars { font-size: 9vh; line-height: 1; letter-spacing: 1.5vh; }
+  .stars i { font-style: normal; color: rgba(255,255,255,.4); }
+  .stars i.on { color: #ffd23f; -webkit-text-stroke: .4vh #c0392b; }
+  .title .stars { font-size: 20vh; }
+  .stars.pop3 i.on { display: inline-block; animation: pop .5s ease-out backwards; }
+  .stars.pop3 i:nth-child(1) { animation-delay: 1.3s; }
+  .stars.pop3 i:nth-child(2) { animation-delay: 1.65s; }
+  .stars.pop3 i:nth-child(3) { animation-delay: 2s; }
+  #ui button.go.off { background: #7b8794; }
+  .opt em.wide { min-width: 60vh; font-size: 3.8vh; }
+  .lap { white-space: pre; }
   .confetti { position: absolute; inset: 0; overflow: hidden; }
   .confetti i { position: absolute; top: -6vh; width: 2.5vh; height: 4vh; border-radius: .6vh; animation: fall linear infinite; }
   @keyframes fall { to { transform: translateY(115vh) rotate(720deg); } }

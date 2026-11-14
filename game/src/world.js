@@ -21,7 +21,20 @@ export const TRACKS = [
     sky: 0xbfe3ff, ground: 0xf4f8ff, road: 0x4d5560,
     pts: [[0, -90], [60, -75], [75, -25], [120, 5], [112, 62], [60, 85], [20, 52], [-22, 80], [-78, 92], [-118, 50], [-95, 0], [-122, -50], [-72, -92], [-35, -62]],
   },
+  {
+    id: 'desert', name: 'Dusty Canyon', theme: 'desert',
+    sky: 0x9fdcff, ground: 0xe8b56a, road: 0x5d5048,
+    pts: [[0, -85], [75, -80], [125, -35], [95, 15], [125, 70], [60, 100], [0, 70], [-60, 100], [-125, 65], [-100, 5], [-130, -50], [-65, -90]],
+  },
 ];
+
+// Levels go round the four tracks three times; the other racers get quicker each round.
+export const LEVELS = [];
+for (let round = 0; round < 3; round++) {
+  for (let t = 0; t < TRACKS.length; t++) {
+    LEVELS.push({ track: t, laps: round < 2 ? 2 : 3, pace: [0.82, 1.0, 1.1][round] });
+  }
+}
 
 function rng(seed) {
   let a = seed >>> 0;
@@ -94,6 +107,18 @@ const KINDS = {
     { g: coneG, c: 0xff8a3d, p: [0, 3.2, 0.6], s: [0.1, 0.5, 0.1], rx: Math.PI / 2 },
     { g: cylG, c: 0x22232a, p: [0, 3.8, 0], s: [0.4, 0.5, 0.4] },
   ],
+  cactus: [
+    { g: cylG, c: 0x3f9b4a, p: [0, 2.2, 0], s: [0.55, 4.4, 0.55] },
+    { g: boxG, c: 0x3f9b4a, p: [0.9, 2.4, 0], s: [1.3, 0.5, 0.5] },
+    { g: boxG, c: 0x3f9b4a, p: [1.4, 3.1, 0], s: [0.5, 1.6, 0.5] },
+    { g: boxG, c: 0x3f9b4a, p: [-0.9, 1.7, 0], s: [1.3, 0.5, 0.5] },
+    { g: boxG, c: 0x3f9b4a, p: [-1.4, 2.3, 0], s: [0.5, 1.4, 0.5] },
+  ],
+  redrock: [{ g: ico, c: 0xc9713b, p: [0, 0.8, 0], s: [2.0, 1.5, 1.7] }],
+  mesa: [
+    { g: cylG, c: 0xc9713b, p: [0, 22, 0], s: [48, 44, 48] },
+    { g: cylG, c: 0xdb8a4e, p: [0, 46, 0], s: [50, 5, 50] },
+  ],
   cloud: [
     { g: ico, c: 0xffffff, p: [0, 0, 0], s: [9, 4, 6] },
     { g: ico, c: 0xffffff, p: [7, -0.5, 1], s: [6, 3, 4.5] },
@@ -110,6 +135,7 @@ const KINDS = {
 const THEMES = {
   meadow: { near: [['tree', 70], ['bush', 50], ['flower', 60], ['flower2', 60]], far: ['hill', 14] },
   beach: { near: [['palm', 60], ['umbrella', 22], ['ball', 25], ['rock', 30]], far: ['island', 9] },
+  desert: { near: [['cactus', 60], ['redrock', 45], ['bush', 20]], far: ['mesa', 10] },
   snow: { near: [['pine', 80], ['snowman', 18], ['rock', 30]], far: ['mountain', 14] },
 };
 

@@ -80,25 +80,46 @@ export function horn() {
   tone(392, 0.18, 0.26, 'square', 0.12);
   tone(494, 0.18, 0.26, 'square', 0.12);
 }
+// A short, soft "wee-woo". Pressing again while it plays does nothing.
+let sirenUntil = 0;
 export function siren() {
-  if (!ctx) return;
+  if (!ctx || ctx.currentTime < sirenUntil) return;
   const o = ctx.createOscillator();
   const g = ctx.createGain();
-  o.type = 'square';
+  o.type = 'sine';
   const t = ctx.currentTime;
-  for (let i = 0; i < 3; i++) {
-    o.frequency.setValueAtTime(620, t + i * 0.5);
-    o.frequency.linearRampToValueAtTime(980, t + i * 0.5 + 0.25);
-    o.frequency.linearRampToValueAtTime(620, t + i * 0.5 + 0.5);
+  for (let i = 0; i < 2; i++) {
+    o.frequency.setValueAtTime(520, t + i * 0.5);
+    o.frequency.linearRampToValueAtTime(700, t + i * 0.5 + 0.25);
+    o.frequency.linearRampToValueAtTime(520, t + i * 0.5 + 0.5);
   }
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.1, t + 0.03);
-  g.gain.setValueAtTime(0.1, t + 1.45);
-  g.gain.linearRampToValueAtTime(0, t + 1.5);
+  g.gain.linearRampToValueAtTime(0.09, t + 0.05);
+  g.gain.setValueAtTime(0.09, t + 0.85);
+  g.gain.linearRampToValueAtTime(0, t + 1.0);
   o.connect(g);
   g.connect(master);
   o.start(t);
-  o.stop(t + 1.55);
+  o.stop(t + 1.05);
+  sirenUntil = t + 1.0;
+}
+export function zoom() {
+  if (!ctx) return;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'triangle';
+  const t = ctx.currentTime;
+  o.frequency.setValueAtTime(300, t);
+  o.frequency.exponentialRampToValueAtTime(1200, t + 0.35);
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.linearRampToValueAtTime(0, t + 0.4);
+  o.connect(g);
+  g.connect(master);
+  o.start(t);
+  o.stop(t + 0.42);
+}
+export function star(i) {
+  tone([784, 988, 1319][i] || 784, 0, 0.22, 'triangle', 0.25);
 }
 export function blip() {
   tone(660, 0, 0.07, 'triangle', 0.2);
